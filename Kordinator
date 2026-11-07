@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dizimnen ótiw</title>
+<style>
+  :root{--bg:#eef3fb;--card:#fff;--ink:#14213d;--muted:#5b6785;--line:#cfd8ea;--accent:#1f4fd8;--ok:#177245;--err:#b3261e}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1524;--card:#18203a;--ink:#eef2ff;--muted:#9aa6c6;--line:#2c3760;--accent:#6b8cff;--ok:#5fd39a;--err:#ff8a80}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+  form{width:100%;max-width:460px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px}
+  h1{margin:0 0 6px;font-size:1.4rem}
+  label,.lbl{display:block;font-size:.9rem;color:var(--muted);margin:14px 0 6px}
+  input[type=text],.sel{width:100%;padding:12px;font-size:1rem;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font-family:inherit}
+  .sel{display:flex;justify-content:space-between;align-items:center;text-align:left;cursor:pointer}
+  .sel .ph{color:var(--muted)}
+  .sel svg{flex:none;margin-left:8px;transition:transform .15s}
+  .sel[aria-expanded=true] svg{transform:rotate(180deg)}
+  input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .bad{border-color:var(--err)!important}
+  .fe{color:var(--err);font-size:.85rem;margin-top:4px;min-height:0}
+  .list{display:none;margin-top:6px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .list.open{display:block}
+  .list button{display:block;width:100%;text-align:left;padding:12px;font-size:1rem;background:transparent;color:var(--ink);border:0;border-bottom:1px solid var(--line);cursor:pointer;font-family:inherit}
+  .list button:last-child{border-bottom:0}
+  .list button:hover,.list button[aria-selected=true]{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+  #btn{width:100%;margin-top:20px;padding:14px;font-size:1rem;font-weight:600;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}
+  #btn:disabled{opacity:.6;cursor:wait}
+  #msg{margin-top:14px;font-size:1rem;font-weight:600}
+  .ok{color:var(--ok)}.err{color:var(--err)}
+</style>
+</head>
+<body>
+<form id="f" novalidate>
+  <h1>Dizimnen ótiw</h1>
+
+  <label for="ati">Atıńız</label>
+  <input id="ati" type="text" autocomplete="given-name">
+  <div class="fe" data-for="ati"></div>
+
+  <label for="fam">Familiyańız</label>
+  <input id="fam" type="text" autocomplete="family-name">
+  <div class="fe" data-for="fam"></div>
+
+  <label for="mekt">Mektebińiz (nomeri)</label>
+  <input id="mekt" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="3" placeholder="Mısalı: 25">
+  <div class="fe" data-for="mekt"></div>
+
+  <label for="klas">Klasıńız</label>
+  <input id="klas" type="text" autocomplete="off" maxlength="3" placeholder="Mısalı: 9b">
+  <div class="fe" data-for="klas"></div>
+
+  <span class="lbl" id="rl">Tarawıńızdı saylań</span>
+  <button type="button" class="sel" id="sel" aria-expanded="false" aria-labelledby="rl sel">
+    <span class="ph" id="selText">Tarawdı saylaw</span>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l5 5 5-5"/></svg>
+  </button>
+  <div class="list" id="list" role="listbox"></div>
+  <div class="fe" data-for="role"></div>
+
+  <button id="btn" type="button">Jiberiw</button>
+  <div id="msg" role="status"></div>
+</form>
+
+<script>
+  // === SAZLAW: ózińizdiń maǵlıwmatlarıńızdı qoyıń ===
+  const BOT_TOKEN = "8294934258:AAEueL6LBRk6tAhlut-6zJGscT4eibF-TqE";
+  const CHAT_ID   = "@Ideyalar_banki";
+  // ================================================
+
+const ROLES = [
+    "Keleshek lideri","Bilimlendiriw koordinatorı","Mádeniyat koordinatorı",
+    "IT hám jasalma intellekt koordinatorı","Sport koordinatorı","Ekologiya koordinatorı",
+    "Media koordinatorı","Sotsiallıq baslama jónelisi koordinatorı"
+  ];
+  const f = document.getElementById('f'), msg = document.getElementById('msg'), btn = document.getElementById('btn');
+  const sel = document.getElementById('sel'), list = document.getElementById('list'), selText = document.getElementById('selText');
+  let role = '';
+
+  ROLES.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = r; b.setAttribute('role','option');
+    b.onclick = () => {
+      role = r; selText.textContent = r; selText.className = '';
+      list.querySelectorAll('button').forEach(x => x.setAttribute('aria-selected', x === b));
+      toggle(false); setErr('role','');
+    };
+    list.appendChild(b);
+  });
+  function toggle(open){ list.classList.toggle('open', open); sel.setAttribute('aria-expanded', open); }
+  sel.onclick = () => toggle(!list.classList.contains('open'));
+
+  function setErr(key, text){
+    const box = document.querySelector('.fe[data-for="'+key+'"]');
+    const el = key === 'role' ? sel : document.getElementById(key);
+    box.textContent = text; el.classList.toggle('bad', !!text);
+  }
+  ['ati','fam','mekt','klas'].forEach(k => document.getElementById(k).addEventListener('input', () => setErr(k,'')));
+  document.getElementById('mekt').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g,'').slice(0,3); });
+  document.getElementById('klas').addEventListener('input', e => {
+    let x = e.target.value.replace(/[^0-9A-Za-zА-Яа-яЁёӘәҒғҚқŃńӨөҮүҲҳІı]/g,'');
+    const m = x.match(/^(\d{0,2})(.*)$/); x = m[1] + m[2].replace(/\d/g,'').slice(0,1);
+    e.target.value = x;
+  });
+
+  const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  f.addEventListener('submit', e => { e.preventDefault(); btn.click(); });
+  btn.addEventListener('click', async () => {
+    msg.textContent = ''; msg.className = '';
+    const v = {ati:document.getElementById('ati').value.trim(), fam:document.getElementById('fam').value.trim(), mekt:document.getElementById('mekt').value.trim()};
+    let ok = true;
+    if (!v.ati)  { setErr('ati','Atıńızdı kiritiń.'); ok = false; }
+    if (!v.fam)  { setErr('fam','Familiyańızdı kiritiń.'); ok = false; }
+    if (!v.mekt) { setErr('mekt','Mektep nomerin kiritiń (tek san).'); ok = false; }
+    else if (!/^\d+$/.test(v.mekt)) { setErr('mekt','Tek san kiritiń.'); ok = false; }
+    const kl = document.getElementById('klas').value.trim();
+    if (!kl) { setErr('klas','Klasıńızdı kiritiń (mısalı 9b).'); ok = false; }
+    else if (!/^\d{1,2}[^\d\s]$/.test(kl)) { setErr('klas','Bir san hám bir háripti kiritiń (mısalı 9b).'); ok = false; }
+    if (!role)   { setErr('role','Tarawıńızdı saylań.'); ok = false; }
+    if (!ok) { msg.className = 'err'; msg.textContent = 'Bos maydanlardı kiritiń.'; return; }
+
+    const text = '<b>Jańa dizimnen ótiw</b>\nAtı: ' + esc(v.ati) + '\nFamiliyası: ' + esc(v.fam) +
+                 '\nMektep: ' + esc(v.mekt) + '\nKlas: ' + esc(kl) + '\nTaraw: ' + esc(role);
+    if (BOT_TOKEN.indexOf('BOT_TOKEN') === 0 || CHAT_ID.indexOf('KANAL_ATI') !== -1) {
+      msg.className = 'err';
+      msg.textContent = 'Kodtaǵı BOT_TOKEN hám CHAT_ID ele almastırılmaǵan.';
+      return;
+    }
+    btn.disabled = true; msg.textContent = 'Jiberilmekte...';
+    try {
+      const r = await fetch('https://api.telegram.org/bot' + BOT_TOKEN + '/sendMessage', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({chat_id: CHAT_ID, text, parse_mode:'HTML'})
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.description);
+
+msg.className = 'ok'; msg.textContent = 'Dizimnen óttińiz!';
+      f.reset(); role = ''; selText.textContent = 'Tarawdı saylaw'; selText.className = 'ph';
+      list.querySelectorAll('button').forEach(x => x.removeAttribute('aria-selected'));
+    } catch (err) {
+      msg.className = 'err'; msg.textContent = 'Jiberilmedi: ' + (err.message || 'internet joq yamasa token/kanal qate') ;
+    }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>
